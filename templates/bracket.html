@@ -1,0 +1,123 @@
+<!doctype html>
+
+{% if message %}
+  <h2>{{message}}</h2>
+{% endif %}
+
+<!-- bracket = (bracket_id, title, description, status, entrant_count, host_username) -->
+<title>{{bracket[1]}}</title>
+
+<h1>{{bracket[1]}}</h1>
+
+<p>
+  Host: <a href = "/user{{bracket[5]}}"> {{bracket[5]}} </a> |
+  Entrants: {{bracket[4]}} |
+  Status: <b>{{bracket[3]}}</b>
+</p>
+
+{% if bracket[2] %}
+  <p>{{bracket[2]}}</p>
+{% endif %}
+
+<!-- CHAMPION PATH CODE STARTS HERE -->
+{% if bracket[3] == "completed" %}
+  <h3>
+    The champion has been decided.
+  </h3>
+
+  <p><a href="/champion{{bracket[0]}}">View champion path</a></p>
+{% endif %}
+<!-- CHAMPION PATH CODE ENDS HERE -->
+
+
+<!-- PREDICTION CODE STARTS HERE -->
+
+{% if bracket[3] == "predictions_open"%}
+  <h3>Make your predictions</h3>
+  <!-- r1_matchups = (matchup_id, entrant_a_id, entrant_a_name, entrant_b_id, entrant_b_name) -->
+  <form action="/predict{{ bracket[0]}}" method="post">
+    {% for m in r1_matchups %}
+      {{ m[2] }} vs {{ m[4] }}:
+        <select name='pick_{{m[0]}}'>
+        <option value='{{m[1]}}'>{{m[2]}}</option>
+        <option value='{{m[3]}}'>{{m[4]}}</option>
+        </select>
+    {% endfor %}
+      <input type='submit' value='Submit Predictions' />
+  </form>
+  {% endif %}
+
+<!-- PREDICTION CODE ENDS HERE -->
+
+<!-- VOTING CODE STARTS HERE -->
+
+{% if cr_matchups %}
+<h3>Vote for current round</h3>
+  <!-- cr_matchups = (matchup_id, entrant_a_id, entrant_a_name, entrant_b_id, entrant_b_name) -->
+  <form action="/vote{{ bracket[0] }}" method="post">
+    {% for m in cr_matchups %}
+      {{ m[2] }} vs {{ m[4] }}:
+        <select name='vote_{{m[0]}}'>
+        <option value='{{m[1]}}'>{{m[2]}}</option>
+        <option value='{{m[3]}}'>{{m[4]}}</option>
+        </select>
+    {% endfor %}
+        <input type="submit" value = "Submit Votes">
+  </form>
+  {% endif %}
+
+<!-- VOTING CODE ENDS HERE -->
+
+<!-- COMMENTS CODE STARTS HERE -->
+
+
+<!-- m = (matchup_id, entrant_a_name, entrant_b_name, comments) -->
+
+<h3>Comments</h3>
+{% for m in r1_matchups %}
+  <p><b>{{ m[2] }} vs {{ m[4] }}</b></p>
+  <ul>
+    {% for c in comments if c[0] == m[0] %}
+      <li>{{ c[1] }}: {{ c[2] }}</li>
+    {% endfor %}
+  </ul>
+  <form action="/comment{{ m[0] }}" method="post">
+    <input type="text" name="body" required>
+    <input type="submit" value="Comment">
+  </form>
+{% endfor %}
+
+
+<!-- COMMENTS CODE ENDS HERE -->
+
+<!-- matchup = (matchup_id, round, slot, entrant_a_name, entrant_b_name, winner_name, votes_a, votes_b) -->
+<h3>Matchups</h3>
+
+<table border='1' cellpadding='4'>
+  <tr>
+    <th>Round</th>
+    <th>Slot</th>
+    <th>Entrant A</th>
+    <th>Votes A</th>
+    <th>Votes B</th>
+    <th>Entrant B</th>
+    <th>Winner</th>
+  </tr>
+  {% for m in matchups %}
+    <tr>
+      <td>{{m[1]}}</td>
+      <td>{{m[2]}}</td>
+      <td>{% if m[3] %}{{m[3]}}{% else %}(TBD){% endif %}</td>
+      <td>{{m[6]}}</td>
+      <td>{{m[7]}}</td>
+      <td>{% if m[4] %}{{m[4]}}{% else %}(TBD){% endif %}</td>
+      <td>{% if m[5] %}{{m[5]}}{% else %}-{% endif %}</td>
+    </tr>
+  {% endfor %}
+</table>
+
+<br />
+<ul>
+  <li><a href='/browse'>Browse brackets</a></li>
+  <li><a href='/'>Home</a></li>
+</ul>

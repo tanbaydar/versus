@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+
+<!-- view_profile = (username, followers, following -->
+
+<title> {{ username }}</title>
+
+<h1> {{ username }}</h1>
+
+<!-- bio: getBio() - string -->
+{% if bio %}
+  <p>{{ bio }}</p>
+{% endif %}
+
+<form action="/follow{{username}}" method="post">
+    <input type="submit" value="Follow">
+</form>
+
+<form action="/unfollow{{username}}" method="post">
+    <input type="submit" value="Unfollow">
+</form>
+
+<!-- stats: getProfileStats() → (total_points, prediction_count, correct_count) -->
+<h3>Stats</h3>
+<p>Total points: {{ stats[0] }}</p>
+<p>Predictions made: {{ stats[1] }}</p>
+<p>Correct picks: {{ stats[2] }}</p>
+
+<!-- achievements: getAchievements() → rows of (code, name) -->
+<h3>Achievements</h3>
+{% if achievements %}
+  <ul>
+    {% for a in achievements %}
+      <li>{{ a[0] }}: {{ a[1] }}</li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p>No achievements yet.</p>
+{% endif %}
+
+<!-- hosted: getHostedBrackets() → rows of (bracket_id, title, status) -->
+<h3>Hosted Brackets</h3>
+{% if hosted %}
+  <ul>
+    {% for b in hosted %}
+      <li><a href="/bracket{{b[0]}}">{{ b[1] }}</a> ({{ b[2] }})</li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p>No brackets hosted yet.</p>
+{% endif %}
+
+
+<!-- followers: getFollowers() → rows of (username,) -->
+<h3>Followers</h3>
+    {% if followers %}
+    <ul>
+        {% for f in followers %}
+        <li>{{ f[0]}}</li>
+        {% endfor %}
+    </ul>
+    {% else %}
+        <p>No followers yet.</p>
+    {% endif %}
+
+
+<!-- following: getFollowing() → rows of (username,) -->
+<h3>Following</h3>
+    {% if following %}
+    <ul>
+        {% for f in following %}
+        <li>{{ f[0]}}</li>
+        {% endfor %}
+    </ul>
+    {% else %}
+        <p>Not following anyone yet.</p>
+    {% endif %}
+
+
+
+
