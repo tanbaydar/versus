@@ -1,0 +1,33 @@
+<!-- admin.html -->
+<!doctype html>
+<title>Admin Console</title>
+<h2>Admin Console</h2>
+
+<form action="/admin" method="post">
+    <textarea name="query" rows="5" cols="60">{{ query or '' }}</textarea><br>
+    <input type="submit" value="Run">
+</form>
+
+{% if error %}
+    <p><b>Error:</b> {{ error }}</p>
+{% endif %}
+
+{% if columns %}
+    <table border='1' cellpadding='4'>
+        <tr>
+            {% for col in columns %}
+                <th>{{ col }}</th>
+            {% endfor %}
+        </tr>
+        {% for row in rows %}
+            <tr>
+                {% for val in row %}
+                    <td>{{ val }}</td>
+                {% endfor %}
+            </tr>
+        {% endfor %}
+    </table>
+{% endif %}
+
+<br>
+<a href='/'>Home</a>

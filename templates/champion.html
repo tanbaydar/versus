@@ -1,0 +1,9 @@
+<!doctype html>
+
+<!-- bracket = (bracket_id, title, status, entrant_count, created_at, host_username) -->
+<title>Champion Path</title>
+
+<!-- p = (round, entrant_a_name, entrant_b_name, winner_name) -->
+{% for p in path %}
+    <p>Round {{ p[0] }}: {{ p[1] }} vs {{ p[2] }} - {{ p[3] }} </p>
+{% endfor %}

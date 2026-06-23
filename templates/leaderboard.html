@@ -1,0 +1,34 @@
+<!doctype html>
+
+<title>Leaderboard</title>
+
+<h2>Leaderboard</h2>
+
+<!-- row = (username, total_points, rank, dense_rank, percent_rank) -->
+{% if rows %}
+  <table border='1' cellpadding='4'>
+    <tr>
+      <th>Rank</th>
+      <th>User</th>
+      <th>Points</th>
+      <th>Dense rank</th>
+      <th>Percentile</th>
+    </tr>
+    {% for r in rows %}
+      <tr {% if r[0] == me %}style="background-color: yellow"{% endif %}>
+        <td>{{r[2]}}</td>
+        <td>{{r[0]}}</td>
+        <td>{{r[1]}}</td>
+        <td>{{r[3]}}</td>
+        <td>{{r[4]}}</td>
+      </tr>
+    {% endfor %}
+  </table>
+{% else %}
+  <p>No users yet.</p>
+{% endif %}
+
+<br />
+<ul>
+  <li><a href='/'>Home</a></li>
+</ul>
