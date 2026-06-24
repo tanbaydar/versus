@@ -29,6 +29,19 @@
 {% endif %}
 <!-- CHAMPION PATH CODE ENDS HERE -->
 
+<!-- HOST CONTROLS START -->
+{% if current_user.is_authenticated and current_user.id == bracket[5] %}
+  {% if bracket[3] == "predictions_open" %}
+    <form action="/open{{ bracket[0] }}" method="post">
+      <input type="submit" value="Start Round 1 (open voting)">
+    </form>
+  {% elif bracket[3] in ["round_1","round_2","round_3","round_4","round_5"] %}
+    <form action="/close{{ bracket[0] }}" method="post">
+      <input type="submit" value="Close current round">
+    </form>
+  {% endif %}
+{% endif %}
+<!-- HOST CONTROLS END -->
 
 <!-- PREDICTION CODE STARTS HERE -->
 
