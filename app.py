@@ -1,29 +1,21 @@
-######################################
-# VERSUS skeleton app.py
-# CS460 Final Project
-######################################
-# Covers the core: register/login, create bracket, browse, view.
-# Students extend with: predictions, voting, round-closing (stored
-# procedure), triggers, leaderboard (window functions), recursive CTE,
-# follows, comments, indexes.
-###################################################
-
 import flask
 from flask import Flask, request, render_template, redirect, url_for
 import mysql.connector
 import flask_login
 import datetime
+import os
+from dotenv import load_dotenv
 from werkzeug.security import generate_password_hash, check_password_hash
 
-app = Flask(__name__)
-app.secret_key = 'super secret string'  # Change this!
+load_dotenv()
 
-# These will need to be changed according to your credentials.
-# DONE
-DB_USER     = 'root'
-DB_PASSWORD = ''
-DB_NAME     = 'versus'
-DB_HOST     = 'localhost'
+app = Flask(__name__)
+app.secret_key = os.environ['FLASK_SECRET_KEY']
+
+DB_USER     = os.environ['MYSQL_USER']
+DB_PASSWORD = os.environ['MYSQL_PASSWORD']
+DB_NAME     = os.environ.get('MYSQL_DATABASE', 'versus')
+DB_HOST     = os.environ.get('MYSQL_HOST', 'localhost')
 
 def get_conn():
 	return mysql.connector.connect(
@@ -474,10 +466,6 @@ def post_comment(matchup_id):
 
 
 # START LEADERBOARD CODE
-# https://stackoverflow.com/questions/62851137/run-sql-query-in-python 
-# https://www.geeksforgeeks.org/sql-server/rank-and-dense-rank-in-sql-server/
-
-
 def getLeaderboard():
 	cursor = conn.cursor()
 	cursor.execute("""
@@ -515,8 +503,6 @@ def leaderboard():
 
 
 # START CHAMPION PATH CODE
-# https://learn.microsoft.com/en-us/sql/t-sql/queries/recursive-common-table-expression-transact-sql?view=sql-server-ver17
-# https://www.geeksforgeeks.org/sql-server/rank-and-dense-rank-in-sql-server/ 
 def getChampionPath(bracket_id):
 	cursor = conn.cursor()
 	cursor.execute("""
@@ -625,38 +611,75 @@ def view_profile(username):
 
 
 # START OF HOST CONTROL CODE
-# https://dev.mysql.com/doc/refman/8.0/en/call.html
-# https://www.geeksforgeeks.org/mysql/different-types-of-procedures-in-mysql/
-
 @app.route('/open<bracket_id>', methods=['POST'])
 @flask_login.login_required
 def open_round_one(bracket_id):
 	cursor = conn.cursor()
-	cursor.execute(
-		"UPDATE Brackets SET status = 'round_1' WHERE bracket_id = '{0}'".format(bracket_id)
-	)
-	conn.commit()
-	cursor.close()
+	try:
+		uid = getUserIdFromUsername(flask_login.current_user.id)
+		cursor.execute(
+			"SELECT host_id, status FROM Brackets WHERE bracket_id = %s FOR UPDATE",
+			(bracket_id,),
+		)
+		bracket = cursor.fetchone()
+		if bracket is None:
+			conn.rollback()
+			flask.abort(404)
+		if bracket[0] != uid:
+			conn.rollback()
+			flask.abort(403)
+		if bracket[1] != 'predictions_open':
+			conn.rollback()
+			flask.abort(409)
+
+		cursor.execute(
+			"UPDATE Brackets SET status = 'round_1' WHERE bracket_id = %s",
+			(bracket_id,),
+		)
+		conn.commit()
+	except mysql.connector.Error:
+		conn.rollback()
+		raise
+	finally:
+		cursor.close()
 	return redirect(url_for('view_bracket', bracket_id=bracket_id))		
 
 @app.route('/close<bracket_id>', methods=['POST'])
 @flask_login.login_required
 def close_current_round(bracket_id):
-	round = getCurrentRound(bracket_id)
 	cursor = conn.cursor()
-	cursor.execute(
-		"CALL close_round('{0}', '{1}')".format(bracket_id, round)
-	)
-	conn.commit()
-	cursor.close()
+	try:
+		uid = getUserIdFromUsername(flask_login.current_user.id)
+		cursor.execute(
+			"SELECT host_id, status FROM Brackets WHERE bracket_id = %s FOR UPDATE",
+			(bracket_id,),
+		)
+		bracket = cursor.fetchone()
+		if bracket is None:
+			conn.rollback()
+			flask.abort(404)
+		if bracket[0] != uid:
+			conn.rollback()
+			flask.abort(403)
+
+		status = bracket[1]
+		if not status.startswith('round_'):
+			conn.rollback()
+			flask.abort(409)
+		current_round = int(status.removeprefix('round_'))
+
+		cursor.callproc('close_round', (bracket_id, current_round))
+		conn.commit()
+	except mysql.connector.Error:
+		conn.rollback()
+		raise
+	finally:
+		cursor.close()
 	return redirect(url_for('view_bracket', bracket_id=bracket_id))			
 
 # END OF HOST CONTROL CODE
 
 # START OF ADMIN CODE
-# https://dev.mysql.com/doc/connector-python/en/connector-python-api-mysqlcursor-description.html 
-
-
 @app.route('/admin', methods=['GET', 'POST'])
 @flask_login.login_required
 def admin():
@@ -695,16 +718,6 @@ def home():
 
 
 if __name__ == "__main__":
-	# this is invoked when in the shell you run
-	# $ python app.py
-	app.debug = True
-	app.run(port=5001, debug=True)
-
-
-
-# predictions, voting, round-closing (stored
-# procedure), triggers, leaderboard (window functions), recursive CTE,
-# follows, comments, indexes.
-
-
-
+	debug = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
+	port = int(os.environ.get('PORT', '5001'))
+	app.run(port=port, debug=debug)

@@ -1,9 +1,5 @@
--- VERSUS skeleton schema
--- Run:  mysql -u root -p versus < schema.sql
---
--- The four core tables for Phase I.
--- Students will extend with: predictions, votes, achievements,
--- user_achievements, follows, comments, plus triggers and a stored procedure.
+-- VERSUS schema
+-- Run: mysql -u root -p < schema.sql
 
 DROP DATABASE IF EXISTS versus;
 CREATE DATABASE versus;
@@ -130,14 +126,11 @@ CONSTRAINT fk_comments_matchup FOREIGN KEY (matchup_id) REFERENCES Matchups(matc
 );
 
 
--- https://dev.mysql.com/doc/refman/8.0/en/create-index.html
 CREATE INDEX idx_matchups_bracket ON Matchups(bracket_id);
 CREATE INDEX idx_predictions_user ON Predictions(user_id);
 CREATE INDEX idx_follows_followed ON Follows(followed_id);
 
 
-
--- https://www.geeksforgeeks.org/mysql/mysql-before-insert-trigger/ 
 
 DELIMITER $$ 
 
@@ -220,8 +213,6 @@ DELIMITER ;
 
 
 DELIMITER $$
--- https://www.geeksforgeeks.org/sql/what-is-stored-procedures-in-sql/ 
-DELIMITER $$
 
 CREATE PROCEDURE close_round(IN p_bracket_id INT, IN p_round INT)
 BEGIN
@@ -234,13 +225,42 @@ BEGIN
         WHERE bracket_id = p_bracket_id AND round = p_round;
     DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
 
-    -- 1. winners from vote totals; ties -> A         (lec04 UPDATE + CASE)
-    UPDATE Matchups
-    SET winner_entrant_id =
-        CASE WHEN votes_a >= votes_b THEN entrant_a_id ELSE entrant_b_id END
-    WHERE bracket_id = p_bracket_id AND round = p_round;
+    -- Reject invalid or repeated transitions before changing tournament data.
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Brackets
+        WHERE bracket_id = p_bracket_id
+          AND status = CONCAT('round_', p_round)
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Bracket is not in the requested active round.';
+    END IF;
 
-    -- 2. score this round's predictions; 1 pt/correct  (lec04 UPDATE + CASE + subquery)
+    -- Every active matchup must be fully populated before it can be resolved.
+    IF EXISTS (
+        SELECT 1
+        FROM Matchups
+        WHERE bracket_id = p_bracket_id
+          AND round = p_round
+          AND (entrant_a_id IS NULL OR entrant_b_id IS NULL)
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Active round contains an incomplete matchup.';
+    END IF;
+
+    -- 1. winners from vote totals; ties go to the better-seeded entrant
+    UPDATE Matchups m
+    JOIN Entrants ea ON ea.entrant_id = m.entrant_a_id
+    JOIN Entrants eb ON eb.entrant_id = m.entrant_b_id
+    SET m.winner_entrant_id = CASE
+        WHEN m.votes_a > m.votes_b THEN m.entrant_a_id
+        WHEN m.votes_b > m.votes_a THEN m.entrant_b_id
+        WHEN ea.seed <= eb.seed THEN m.entrant_a_id
+        ELSE m.entrant_b_id
+    END
+    WHERE m.bracket_id = p_bracket_id AND m.round = p_round;
+
+    -- 2. score this round's predictions; one point per correct prediction
     UPDATE Predictions
     SET is_correct =
             CASE WHEN entrant_id =
@@ -256,7 +276,7 @@ BEGIN
         (SELECT matchup_id FROM Matchups
          WHERE bracket_id = p_bracket_id AND round = p_round);
 
-    -- 3. promote winners into next round   (lec06 declare cursor for / open / fetch)
+    -- 3. promote winners into the next round
     OPEN cur;
     promote_loop: LOOP
         FETCH cur INTO v_slot, v_winner;
@@ -273,7 +293,7 @@ BEGIN
     END LOOP;
     CLOSE cur;
 
-    -- 4. advance status, else complete on final round  (lec06 subquery-in-IF + IF/ELSEIF)
+    -- 4. advance status, or complete the bracket after the final round
     IF p_round = (SELECT MAX(round) FROM Matchups WHERE bracket_id = p_bracket_id) THEN
         UPDATE Brackets SET status = 'completed' WHERE bracket_id = p_bracket_id;
     ELSEIF p_round = 1 THEN
@@ -288,5 +308,3 @@ BEGIN
 END$$
 
 DELIMITER ;
-
-
