@@ -53,11 +53,19 @@ erDiagram
 
 ### Predictions and votes
 
+Predictions connect a user and matchup to the entrant selected as the predicted winner.
+
 ```mermaid
 erDiagram
     USERS ||--o{ PREDICTIONS : submits
     MATCHUPS ||--o{ PREDICTIONS : receives
     ENTRANTS ||--o{ PREDICTIONS : selected_as
+```
+
+Votes use the same relationship structure and record the entrant selected during an active round.
+
+```mermaid
+erDiagram
     USERS ||--o{ VOTES : casts
     MATCHUPS ||--o{ VOTES : receives
     ENTRANTS ||--o{ VOTES : selected_as
